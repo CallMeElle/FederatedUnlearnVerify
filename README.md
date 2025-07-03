@@ -5,6 +5,13 @@ Changes to original
 to start learning create a data folder in the repo that the data can be saved there and define the path during learning as flag.
 Additional resources in requirements.txt
 
+## Setup
+install python 3.9
+create virtual environment
+install requirements using 
+
+`pip install -r requirements.txt
+
 ## Run code
 To start learning use this parameters
 
