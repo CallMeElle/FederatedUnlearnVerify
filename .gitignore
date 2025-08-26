@@ -1,2 +1,6 @@
 venv/
 data/
+None/
+ssh.md
+*.pyc 
+

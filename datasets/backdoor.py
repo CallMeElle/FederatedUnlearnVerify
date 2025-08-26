@@ -45,6 +45,7 @@ def image_backdoor(dataset, trigger_size, trigger_label, unlearn_mode,
             channel = image.shape[2]
 
             # Inject pixel-pattern backdoor trigger
+            print(f"Injecting backdoor {label}, {i}") #debug
             backdoor_image = inject_backdoor_pattern(image=image,
                                                      square_size=trigger_size,
                                                      initial= initial_pix,
