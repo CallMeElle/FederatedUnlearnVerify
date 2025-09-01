@@ -334,7 +334,7 @@ model_pre.load_state_dict(torch.load('None/Cifar10/backdoor/baseline.pth'))
 model_pre.eval()
 
 model_post = ResNet(BasicBlock, [2, 2, 2, 2], num_classes=10, input_channel= 3)
-model_post.load_state_dict(torch.load('None/Cifar10/backdoor/baseline.pth'))
+model_post.load_state_dict(torch.load('None/Cifar10/backdoor/unlearn.pth'))
 model_post.eval()
 
 
@@ -401,16 +401,16 @@ for x in range(len(train_client_traindata)):
     image = image.unsqueeze(0)
     with torch.no_grad():
         conf_vector = model_pre(image)
-    confidence_data.append(conf_vector.numpy()[0]) #0 -> data was used for training
-    label_data.append(0)
+    confidence_data.append(conf_vector.numpy()[0]) #-> data was used for training
+    label_data.append([0])  #0 -> data was used for training
 
 for x in range(len(train_client_testdata)):
     image, _, label = train_client_testdata[x]
     image = image.unsqueeze(0)
     with torch.no_grad():
         conf_vector = model_pre(image)
-    confidence_data.append(conf_vector.numpy()[0]) #1 -> data was not used for training
-    label_data.append(1)
+    confidence_data.append(conf_vector.numpy()[0]) #-> data was not used for training
+    label_data.append([1]) #100% category not used for training #1 -> data was not used for training
 
 confidence_data = torch.tensor(confidence_data, dtype=torch.float32)
 label_data = torch.tensor(label_data, dtype=torch.float32)
@@ -424,7 +424,7 @@ for x in range(len(test_client_traindata)):
     with torch.no_grad():
         conf_vector = model_pre(image)
     confidence_data_test.append(conf_vector.numpy()[0]) #0 -> data was used for training
-    label_data_test.append(0)
+    label_data_test.append([0])
 
 confidence_data_test = torch.tensor(confidence_data_test, dtype=torch.float32)
 label_data_test = torch.tensor(label_data_test, dtype=torch.float32)
@@ -437,9 +437,9 @@ for x in range(len(test_client_testdata)):
     with torch.no_grad():
         conf_vector = model_pre(image)
     confidence_data_test_1.append(conf_vector.numpy()[0]) #1 -> data was not used for training
-    label_data_test_1.append(1)
+    label_data_test_1.append([1])
 
-confidence_data_test_1 = torch.tensor(confidence_data_test, dtype=torch.float32)
+confidence_data_test_1 = torch.tensor(confidence_data_test_1, dtype=torch.float32)
 label_data_test_1 = torch.tensor(label_data_test, dtype=torch.float32)
 
 
@@ -526,21 +526,36 @@ print(out_class3)
 
 #define model and loss function
 classifier = torch.nn.Sequential(    
-    torch.nn.Linear(10, 20),
-    torch.nn.Linear(20, 1)
+    torch.nn.Linear(10, 32), #Inputlayer
+    torch.nn.ReLU(), # Activationfucntion
+    torch.nn.Linear(32,16), #Hiddenlayer
+    torch.nn.ReLU(), #Activationlayer
+    torch.nn.Linear(16, 1) #Outputlayer
 )
 
-loss_fn = torch.nn.MSELoss()
+#calculate weighted loss
+#remove?
+weight_1_0 = len(train_client_traindata) / (len(train_client_traindata) + len(train_client_testdata)) #about 83% of the classifier training data 
+weight = torch.tensor([len(train_client_traindata) / len(train_client_testdata)])
+
+loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight = weight)
+
+print(label_data.size())
+print(classifier(confidence_data).size())
+
+
 
 # Optimizer RMSprop
 learning_rate = 1e-3
 optimizer = torch.optim.RMSprop(classifier.parameters(), lr=learning_rate)
-for t in tqdm(range(2000)):
+for t in tqdm(range(20000)):
 
     y_pred = classifier(confidence_data)
 
 
     loss = loss_fn(y_pred, label_data)
+
+    print(loss)
     
     optimizer.zero_grad()
 
@@ -553,18 +568,20 @@ linear_layer = classifier[0]
 
 torch.save(classifier.state_dict(), 'None/Cifar10/backdoor/classifier.pth')
 
-
-test0 = 0
+#test for training data
+testT0 = 0
 for i in range(len(confidence_data_test)):
     with torch.no_grad():
-        test0 += classifier(confidence_data_test[i])
-print(test0/len(confidence_data_test))
+        testT0 += classifier(confidence_data_test[i])
+print(torch.sigmoid(testT0/len(confidence_data_test)))
 
-test1 = 0
+
+#test for testing data
+testT1 = 0
 for i in range(len(confidence_data_test_1)):
     with torch.no_grad():
-        test1 += classifier(confidence_data_test_1[i])
-print(test1/len(confidence_data_test_1))
+        testT1 += classifier(confidence_data_test_1[i])
+print(torch.sigmoid(testT1/len(confidence_data_test_1)))
 
 
 
