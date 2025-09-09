@@ -12,6 +12,9 @@ from datasets import metrics
 from model import models
 from tqdm import tqdm
 import argparse
+import pickle
+
+from torchvision.utils import save_image
 
 class fl_training:
     def __init__(self, arguments: argparse.Namespace):
@@ -259,6 +262,7 @@ class fl_training:
 
         return retain_train, retain_test, unlearn_train, unlearn_test
 
+
     # Backdoor learning scenario dataset preparation
     def prepare_backdoor_dataset(
             self,
@@ -271,12 +275,33 @@ class fl_training:
         testset = getattr(datasets, self.args.dataset)(
             root=self.args.root, download=True, train=False, unlearning=False, img_size=img_size, augment= False)
 
+        img, format, label = trainset[777]
+        save_image(img, "backdoor_trainset_777_train.png")
+
         # split backdoor dataset -> unlearn client and clean dataset -> retain client
         backdoor_trainset, clean_trainset = torch.utils.data.random_split(
             trainset, [self.client_perc, 1 - self.client_perc])
 
+        #test img with and without label 0
+        save_split(backdoor_trainset, clean_trainset, 'train')
+
+        img, format, label = backdoor_trainset[992]
+        save_image(img, "img_train/backdoor_trainset_992.png")
+        print("testset_992: ", label)
+        img, format, label = backdoor_trainset[993]
+        save_image(img, "img_train/backdoor_trainset_993.png")
+        print("testset_993: ", label)
+
+
+        img, format, label = backdoor_trainset[10]
+        save_image(img, "sample_trainset_10_train.png")
+
         backdoor_testset, clean_testset = torch.utils.data.random_split(
             testset, [self.client_perc, 1 - self.client_perc])
+
+        #save indices of the split for unlearning & verification    
+        save_split(backdoor_testset, clean_testset, 'test')
+
 
         backdoor_trainset, backdoor_pertubbed_trainset, backdoor_trainset_true = datasets.image_backdoor(
             dataset=backdoor_trainset, trigger_size= self.args.trigger_size, trigger_label= self.args.trigger_label, unlearn_mode= "single", sigma= 0.5)
@@ -285,6 +310,8 @@ class fl_training:
             dataset=backdoor_testset, trigger_size= self.args.trigger_size, trigger_label= self.args.trigger_label, unlearn_mode= "single", sigma= 0.5)
 
         return clean_trainset, clean_testset, backdoor_trainset, backdoor_testset
+
+
 
     # Biased learning scenario learning dataset preparation
     def prepare_bias_dataset(
@@ -480,3 +507,12 @@ class fl_training:
         # Save trained model
         if self.args.save_model:
             self.save_model(global_model= global_model)
+
+
+
+def save_split(backdoor_set,clean_set, type):
+    
+    with open("img_train/" + type + "_backdoor.pkl", "wb") as file:
+        pickle.dump(backdoor_set, file)
+    with open("img_train/" + type + "_clean.pkl", "wb") as file:
+        pickle.dump(clean_set, file)

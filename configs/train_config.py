@@ -15,7 +15,7 @@ parser.add_argument("-weight_path", type= str, default= None,
                     help= "baseline model weight path for fine tuning")
 parser.add_argument("-hidden_layer_num", type= int,
                     help= "hidden layer number of the linear model for tabular dataset", default= None)
-parser.add_argument("-save_model", action='store_true', help= "option to save the trained model", default= None)
+parser.add_argument("-save_model", action='store_false', help= "option to save the trained model")
 parser.add_argument("-checkpoint", type= str, help= "model folder path", default= None)
 
 # Dataset configuration

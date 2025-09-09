@@ -9,6 +9,10 @@ import torch
 import argparse
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+import pickle
+
+from torchvision.utils import save_image
+
 
 class FeatureUnlearning:
     def __init__(self, args: argparse.Namespace):
@@ -262,17 +266,40 @@ class FeatureUnlearning:
         if self.args.dataset not in ["MNist", "FMNist","Cifar10", "Cifar20", "Cifar100", "Celeba"]:
             raise Exception("Enter correct dataset for backdoor feature unlearning")
 
+        '''
         trainset = getattr(datasets, self.args.dataset)(
             root=self.args.root, download=True, train=True, unlearning=False, img_size=img_size, augment=False)
         testset = getattr(datasets, self.args.dataset)(
             root=self.args.root, download=True, train=False, unlearning=False, img_size=img_size, augment=False)
 
-        # Split backdoor dataset -> unlearn client and clean dataset -> retain client
+        Split backdoor dataset -> unlearn client and clean dataset -> retain client
         backdoor_trainset, clean_trainset = torch.utils.data.random_split(
-                trainset, [self.client_perc, 1 - self.client_perc])
+                trainset, [self.client_perc, 1 - self.client_perc]) 
 
         backdoor_testset, clean_testset = torch.utils.data.random_split(
-                testset, [self.client_perc, 1 - self.client_perc])
+            testset, [self.client_perc, 1 - self.client_perc])      
+        '''
+
+        # split backdoor and clean by loading from learning
+        with open('img_train/train_backdoor.pkl', "rb") as file:
+            backdoor_trainset = pickle.load(file)
+        with open('img_train/train_clean.pkl', "rb") as file:
+            clean_trainset = pickle.load(file)
+        with open('img_train/test_backdoor.pkl', "rb") as file:
+            backdoor_testset = pickle.load(file)
+        with open('img_train/test_clean.pkl', "rb") as file:
+            clean_testset = pickle.load(file)
+
+
+
+        img, format, label = backdoor_trainset[992]
+        save_image(img, "img_unlearn/backdoor_trainset_992.png")
+        print("trainset_992: ", label)
+        img, format, label = backdoor_trainset[993]
+        save_image(img, "img_unlearn/backdoor_trainset_993.png")
+        print("trainset_993: ", label)
+
+        
 
         backdoor_trainset, backdoor_pertubbed_trainset, backdoor_trainset_true = datasets.image_backdoor(
             dataset=backdoor_trainset, trigger_size=self.args.trigger_size, trigger_label=self.args.trigger_label,
@@ -406,6 +433,7 @@ class FeatureUnlearning:
 
         # Check if all necessary files exist
         if not all(os.path.exists(path) for path in file_paths.values()):
+            print("call load_dataset_scratch")
             # load dataset from scratch
             retain_client, unlearn_client, unlearn_client_pertubbed, testset = self.load_dataset_scratch(
                 domain= domain,
@@ -479,3 +507,4 @@ class FeatureUnlearning:
         # Save unlearned model
         if self.args.save_model:
             self.save_model(model_unlearn= model_unlearn)
+
