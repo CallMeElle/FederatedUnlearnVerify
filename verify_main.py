@@ -366,12 +366,8 @@ def prepare_verification(client_num=10, triggerlabel = 0, triggersize = 5):
     with open('img_train/test_clean.pkl', "rb") as file:
         clean_testset = pickle.load(file)
 
-    #backdoor_trainset, clean_trainset = torch.utils.data.random_split(trainset, [client_perc, 1 - client_perc], )
 
-    img, format, label = backdoor_original_trainset[277]
-    save_image(img, "trainset_277_verf.png")
 
-    #backdoor_testset, clean_testset = torch.utils.data.random_split(testset, [client_perc, 1 - client_perc], generator=torch.Generator().manual_seed(0))
 
     backdoor_modified_trainset, backdoor_pertubbed_trainset, backdoor_trainset_true = image_backdoor(
         dataset=backdoor_original_trainset, trigger_size= triggersize, trigger_label= triggerlabel, unlearn_mode= "single", sigma= 0.5)
@@ -426,43 +422,14 @@ def prepare_verification(client_num=10, triggerlabel = 0, triggersize = 5):
     print(label)
     print(len(backdoor_modified_trainset))
     
-    '''
-    img, format, label = backdoor_pertubbed_trainset[0]
-    save_image(img, "backdoor_pertubbed_trainset_0_verfN.png")
-    print("backdoor_pertubbed_trainset_0", label)
-    img, format, label = backdoor_trainset_true[0]
-    save_image(img, "backdoor_true_trainset_0_verf.png")
-    print("backdoor_true_trainset_0", label)
-    img, format, label = backdoor_testset[10]
-    save_image(img, "backdoor_testset_verfN.png")
-    '''
 
     return clean_trainset, clean_testset, backdoor_modified_trainset, backdoor_pertubbed_trainset, backdoor_trainset_true,  backdoor_modified_testset, backdoor_pertubbed_testset, backdoor_testset_true, backdoor_original_trainset, backdoor_original_testset
 
 clean_trainset, clean_testset, backdoor_modified_trainset, backdoor_pertubbed_trainset, backdoor_trainset_true,  backdoor_modified_testset, backdoor_pertubbed_testset, backdoor_testset_true, backdoor_original_trainset, backdoor_original_testset = prepare_verification()
 
-'''
-    #save png of Cifar10
-    img, format, label = backdoor_modified_trainset[0]
-    save_image(img, "trainset_0.png")
-    print("trainset_0", label)
-'''
 
 
-
-#save png of Cifar10 backdoored
-img, format, label = backdoor_modified_trainset[10]
-save_image(img, "backdoor_modified_trainset_10_verf.png")
-print("backdoor_modified_trainset_0", label)
-img, format, label = backdoor_pertubbed_trainset[10]
-save_image(img, "backdoor_pertubbed_trainset_10_verf.png")
-print("backdoor_pertubbed_trainset_0", label)
-img, format, label = backdoor_trainset_true[10]
-save_image(img, "backdoor_true_trainset_10_verf.png")
-print("backdoor_true_trainset_0", label)
-
-
-#create training data from confidence vectors
+#create training data from confidence vectors for the verifier
 
 #split unlearning client in train and test data
 split_train_size = int(len(backdoor_modified_trainset)*0.9)

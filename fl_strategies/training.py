@@ -275,9 +275,6 @@ class fl_training:
         testset = getattr(datasets, self.args.dataset)(
             root=self.args.root, download=True, train=False, unlearning=False, img_size=img_size, augment= False)
 
-        img, format, label = trainset[777]
-        save_image(img, "backdoor_trainset_777_train.png")
-
         # split backdoor dataset -> unlearn client and clean dataset -> retain client
         backdoor_trainset, clean_trainset = torch.utils.data.random_split(
             trainset, [self.client_perc, 1 - self.client_perc])
@@ -285,16 +282,6 @@ class fl_training:
         #test img with and without label 0
         save_split(backdoor_trainset, clean_trainset, 'train')
 
-        img, format, label = backdoor_trainset[992]
-        save_image(img, "img_train/backdoor_trainset_992.png")
-        print("testset_992: ", label)
-        img, format, label = backdoor_trainset[993]
-        save_image(img, "img_train/backdoor_trainset_993.png")
-        print("testset_993: ", label)
-
-
-        img, format, label = backdoor_trainset[10]
-        save_image(img, "sample_trainset_10_train.png")
 
         backdoor_testset, clean_testset = torch.utils.data.random_split(
             testset, [self.client_perc, 1 - self.client_perc])
