@@ -11,8 +11,17 @@ import copy
 import math
 import random
 import pickle
+import mlflow
 
 from torchvision.utils import save_image
+
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument("-trigger_size", type=int, help= "backdoor trigger feature square size")
+
+args = parser.parse_args()
+
 
 CIFAR_MEAN = (0.5070751592371323, 0.48654887331495095, 0.4409178433670343)
 CIFAR_STD = (0.2673342858792401, 0.2564384629170883, 0.27615047132568404)
@@ -230,7 +239,7 @@ def generate_noisy_image(height, width, channels, mean, sigma):
     noise_image = np.random.normal(loc=mean, scale=sigma, size=(height, width, channels))
     return noise_image
 
-def image_backdoor(dataset, trigger_size, trigger_label, unlearn_mode,
+def image_backdoor(dataset, trigger_size, unlearn_mode, trigger_label = 0,
                    sigma= 0.5, sample_number= 20, min_sigma= 0.05, max_sigma= 1.0):
     """
     Backdoor pattern injection for image dataset
@@ -352,8 +361,7 @@ def filter_trigger_label(dataset):
             resultset.append(x)
     return resultset
 
-def prepare_verification(client_num=10, triggerlabel = 0, triggersize = 5):
-    client_perc = 1 / client_num
+def prepare_verification(triggerlabel = 0, triggersize = args.trigger_size):
 
 
     # split backdoor and clean by loading from learning
@@ -366,11 +374,9 @@ def prepare_verification(client_num=10, triggerlabel = 0, triggersize = 5):
     with open('img_train/test_clean.pkl', "rb") as file:
         clean_testset = pickle.load(file)
 
-
-
-
     backdoor_modified_trainset, backdoor_pertubbed_trainset, backdoor_trainset_true = image_backdoor(
         dataset=backdoor_original_trainset, trigger_size= triggersize, trigger_label= triggerlabel, unlearn_mode= "single", sigma= 0.5)
+    
 
     backdoor_modified_testset, backdoor_pertubbed_testset, backdoor_testset_true = image_backdoor(
         dataset=backdoor_original_testset, trigger_size= triggersize, trigger_label= triggerlabel, unlearn_mode= "single", sigma= 0.5)
@@ -378,55 +384,9 @@ def prepare_verification(client_num=10, triggerlabel = 0, triggersize = 5):
     backdoor_original_trainset = filter_trigger_label(backdoor_original_trainset)
     backdoor_original_testset = filter_trigger_label(backdoor_original_testset)
 
-    #save png of Cifar10 backdoored
-
-    print("Test for label =0")
-    img, format, label = backdoor_modified_trainset[992]
-    save_image(img, "img_verify/backdoor_modified_trainset_992_verfN.png")
-    print(label)
-    img, format, label = backdoor_modified_trainset[993]
-    save_image(img, "img_verify/backdoor_modified_trainset_993_verfN.png")
-    print(label)
-    img, format, label = backdoor_modified_trainset[7]
-    save_image(img, "img_verify/backdoor_modified_trainset_7_verfN.png")
-    print(label)
-    img, format, label = backdoor_modified_trainset[8]
-    save_image(img, "img_verify/backdoor_modified_trainset_8_verfN.png")
-    print(label)
-    img, format, label = backdoor_modified_trainset[9]
-    save_image(img, "img_verify/backdoor_modified_trainset_9_verfN.png")
-    print(label)
-    img, format, label = backdoor_modified_trainset[10]
-    save_image(img, "img_verify/backdoor_modified_trainset_10_verfN.png")
-    print(label)
-    img, format, label = backdoor_modified_trainset[11]
-    save_image(img, "img_verify/backdoor_modified_trainset_11_verfN.png")
-    print(label)
-    img, format, label = backdoor_modified_trainset[12]
-    save_image(img, "img_verify/backdoor_modified_trainset_12_verfN.png")
-    print(label)
-    img, format, label = backdoor_modified_trainset[13]
-    save_image(img, "img_verify/backdoor_modified_trainset_13_verfN.png")
-    print(label)
-    img, format, label = backdoor_modified_trainset[14]
-    save_image(img, "img_verify/backdoor_modified_trainset_14_verfN.png")
-    print(label)
-    img, format, label = backdoor_modified_trainset[15]
-    save_image(img, "img_verify/backdoor_modified_trainset_15_verfN.png")
-    print(label)
-    img, format, label = backdoor_modified_trainset[16]
-    save_image(img, "img_verify/backdoor_modified_trainset_16_verfN.png")
-    print(label)
-    img, format, label = backdoor_modified_trainset[17]
-    save_image(img, "img_verify/backdoor_modified_trainset_17_verfN.png")
-    print(label)
-    print(len(backdoor_modified_trainset))
-    
-
     return clean_trainset, clean_testset, backdoor_modified_trainset, backdoor_pertubbed_trainset, backdoor_trainset_true,  backdoor_modified_testset, backdoor_pertubbed_testset, backdoor_testset_true, backdoor_original_trainset, backdoor_original_testset
 
 clean_trainset, clean_testset, backdoor_modified_trainset, backdoor_pertubbed_trainset, backdoor_trainset_true,  backdoor_modified_testset, backdoor_pertubbed_testset, backdoor_testset_true, backdoor_original_trainset, backdoor_original_testset = prepare_verification()
-
 
 
 #create training data from confidence vectors for the verifier
@@ -435,14 +395,41 @@ clean_trainset, clean_testset, backdoor_modified_trainset, backdoor_pertubbed_tr
 split_train_size = int(len(backdoor_modified_trainset)*0.9)
 split_test_size = int(len(backdoor_modified_testset)*0.9)
 train_client_traindata = backdoor_modified_trainset[:split_train_size] #prev traindata that is now used for training
-print("train ", len(train_client_traindata))
+print("train data with backdoor", len(train_client_traindata))
 test_client_traindata = backdoor_modified_trainset[split_train_size:] # prev traindata that is now used for testing
-print("test ", len(test_client_traindata))
+print("test data with backdoor", len(test_client_traindata))
 
 train_client_testdata = backdoor_modified_testset[:split_test_size] 
 test_client_testdata = backdoor_modified_testset[split_test_size:]
 
+####create new unseen data from clean testdata
+split_clean_size = int(len(clean_testset)*0.9)
+first_half = len(clean_testset) - int(len(clean_testset) * 0.1)
+second_half = len(clean_testset) - first_half
+train_clean_testdata, test_clean_testdata = torch.utils.data.random_split(clean_testset, [first_half, second_half]) 
 
+
+#testing set from clean data
+confidence_data_test2 = []
+label_data_test2 = []
+print("test_clean_testdata")
+
+print(test_clean_testdata[0])
+
+
+# test_clean_testdata = test_clean_testdata[0]
+for image, _, label in test_clean_testdata: #I think test_clean_data is in the form []
+    image = image.unsqueeze(0)
+    with torch.no_grad():
+        conf_vector = model_pre(image)
+    confidence_data_test2.append(conf_vector.numpy()[0]) #1 -> data was not used for training
+    label_data_test2.append([1]) 
+
+confidence_data_test2 = torch.tensor(confidence_data_test2, dtype=torch.float32)
+label_data_test2 = torch.tensor(label_data_test2, dtype=torch.float32)
+
+
+#create training dataset
 confidence_data = []
 label_data = []
 for x in range(len(train_client_traindata)):
@@ -461,10 +448,27 @@ for x in range(len(train_client_testdata)):
     confidence_data.append(conf_vector.numpy()[0]) #-> data was not used for training
     label_data.append([1]) #100% category not used for training #1 -> data was not used for training
 
+
+
+'''
+for x in range(300):
+    image, _, label =  train_clean_testdata[x]
+    image = image.unsqueeze(0)
+    with torch.no_grad():
+        conf_vector = model_pre(image)
+    confidence_data.append(conf_vector.numpy()[0]) #-> data was not used for training
+    label_data.append([1]) #100% category not used for training #1 -> data was not used for training
+
+'''
+
 confidence_data = torch.tensor(confidence_data, dtype=torch.float32)
 label_data = torch.tensor(label_data, dtype=torch.float32)
 
 print(confidence_data)
+
+
+
+
 
 #process testing data
 confidence_data_test = []
@@ -491,80 +495,8 @@ for x in range(len(test_client_testdata)):
     label_data_test_1.append([1])
 
 confidence_data_test_1 = torch.tensor(confidence_data_test_1, dtype=torch.float32)
-label_data_test_1 = torch.tensor(label_data_test, dtype=torch.float32)
+label_data_test_1 = torch.tensor(label_data_test_1, dtype=torch.float32)
 
-
-#debug
-print("Split Backdoor and clean")
-print(len(backdoor_modified_trainset))
-print(len(clean_trainset))
-print(len(backdoor_modified_testset))
-print(len(clean_testset))
-
-print(len(backdoor_pertubbed_testset))
-print(len(backdoor_testset_true))
-
-
-#access data
-image, _, label = train_client_testdata[99]
-image = image.unsqueeze(0)
-
-with torch.no_grad():
-    out = model_pre(image)
-    out_class = out.argmax(dim=1).item()
-print(out_class)
-
-image, _, label = backdoor_modified_trainset[178]
-image = image.unsqueeze(0)
-
-with torch.no_grad():
-    out = model_pre(image)
-    out_class = out.argmax(dim=1).item()
-print(out_class)
-
-image, _, label = backdoor_modified_trainset[179]
-image = image.unsqueeze(0)
-
-with torch.no_grad():
-    out = model_pre(image)
-    out_class = out.argmax(dim=1).item()
-print(out_class)
-
-image, _, label = backdoor_modified_trainset[180]
-image = image.unsqueeze(0)
-
-with torch.no_grad():
-    out = model_pre(image)
-    out_class = out.argmax(dim=1).item()
-print(out_class)
-
-image, _, label = backdoor_modified_trainset[181]
-image = image.unsqueeze(0)
-
-with torch.no_grad():
-    out = model_pre(image)
-    out_class = out.argmax(dim=1).item()
-print(out_class)
-
-image, _, label = backdoor_modified_trainset[182]
-image = image.unsqueeze(0)
-
-with torch.no_grad():
-    out = model_pre(image)
-    out_class = out.argmax(dim=1).item()
-print(out_class)
-
-
-#test
-image, _, label = clean_testset[3]
-image = image.unsqueeze(0)
-
-with torch.no_grad():
-    out3 = model_pre(image)
-    out_class3 = out3.argmax(dim=1).item()
-
-print(out3)
-print(out_class3)
 
 
 #create classifier for member data
@@ -583,56 +515,211 @@ classifier = torch.nn.Sequential(
 )
 
 #calculate weighted loss
-#remove?
-weight_1_0 = len(train_client_traindata) / (len(train_client_traindata) + len(train_client_testdata)) #about 83% of the classifier training data 
+#debug  remove
 weight = torch.tensor([len(train_client_traindata) / len(train_client_testdata)])
 
 loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight = weight)
 
-print(label_data.size())
-print(classifier(confidence_data).size())
 
 
-
+#create classifier
 # Optimizer RMSprop
-learning_rate = 1e-3
-optimizer = torch.optim.RMSprop(classifier.parameters(), lr=learning_rate)
-for t in tqdm(range(2)):
+with mlflow.start_run():
+    learning_rate = 1e-3
+    optimizer = torch.optim.RMSprop(classifier.parameters(), lr=learning_rate)
+    for t in tqdm(range(50)):
 
-    y_pred = classifier(confidence_data)
-
-
-    loss = loss_fn(y_pred, label_data)
-    
-    optimizer.zero_grad()
-
-    loss.backward()
-
-    optimizer.step()
+        y_pred = classifier(confidence_data)
 
 
-linear_layer = classifier[0]
+        loss = loss_fn(y_pred, label_data)
+        mlflow.log_metric("loss", loss, step=t)
+        
+        optimizer.zero_grad()
 
-torch.save(classifier.state_dict(), 'None/Cifar10/backdoor/classifier.pth')
+        loss.backward()
 
-#test for training data
-testT0 = 0
-for i in range(len(confidence_data_test)):
+        optimizer.step()
+
+
+    linear_layer = classifier[0]
+
+    torch.save(classifier.state_dict(), 'None/Cifar10/backdoor/classifier.pth')
+
+
+
+
+#calculate accuracy of classifier
+
+
+#accuracy on training data
+num_fn = 0 #predicted as non_member and was member
+num_tn = 0 #predicted as non-member and was non-member
+num_fp = 0 #predicted as member, was non-member
+num_tp = 0 #predicted as member, was member
+
+with torch.no_grad():
+    for i in range(len(confidence_data)):
+        out = torch.sigmoid(classifier(confidence_data[i])).numpy()[0]
+        if (out < 0.5):
+            if (label_data.numpy()[i][0] == 0):
+                num_tp += 1
+            else:
+                num_fp += 1
+        else:
+            if (label_data.numpy()[i][0] == 1):
+                num_tn += 1
+            else:
+                num_fn += 1
+train_nonmember = num_tn/(num_tn+num_fp)
+train_member = num_tp/(num_tp+num_fn)
+print("The classifier on its training data has an accuracy of: " + str((num_tn+num_tp)/ len(confidence_data)*100))
+print(str(train_nonmember*100) + "% of non-member data was correctly predicted as non-member")
+print(str(train_member*100) + "% of member data was correctly predicted as member")
+
+
+
+# #accuracy on testing/unknown data
+test_fn = 0 #predicted as non_member and was member
+test_tn = 0 #predicted as non-member and was non-member
+test_fp = 0 #predicted as member, was non-member
+test_tp = 0 #predicted as member, was member
+
+
+with torch.no_grad():
+    for vec in confidence_data_test:
+        out = torch.sigmoid(classifier(vec)).numpy()[0]
+        if (out < 0.5):
+            test_tp += 1
+        else:
+            test_fn += 1
+    for vec in confidence_data_test_1:
+        out = torch.sigmoid(classifier(vec)).numpy()[0]
+        if (out > 0.5):
+            test_tn += 1
+        else:
+            test_fp += 1
+    for vec in confidence_data_test2:
+            out = torch.sigmoid(classifier(vec)).numpy()[0]
+            if (out > 0.5):
+                test_tn += 1
+            else:
+                test_fp += 1
+
+test_nonmember = test_tn/(test_tn+test_fp)
+test_member = test_tp/(test_tp+test_fn)
+
+print("The classifier on unknown data has an accuracy of: " + str((test_tn+test_tp)/ (len(confidence_data_test)+len(confidence_data_test_1) + len(confidence_data_test2))*100))
+print(str(test_nonmember*100) + "% of non-member data was correctly predicted as non-member")
+print(str(test_member*100) + "% of member data was correctly predicted as member")
+
+
+# #evaluate strongness of classifier output on unknown data vectors
+def eval_classifier(dataset):
+    output = []
+    for i in range(len(dataset)): #should output 0
+        with torch.no_grad():
+            output.append(torch.sigmoid(classifier(dataset[i])).numpy()[0])
+    bins = [0.0, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, np.inf]
+    counter, _ = np.histogram(output, bins)
+    print(counter)
+
+
+eval_classifier(confidence_data_test) #should only be in the first 5 -> >0.5
+eval_classifier(confidence_data_test_1) #should only be after the first 5 -> <0.5
+eval_classifier(confidence_data_test2) #should only be after the first 5 -> <0.5
+
+#warning if classifier does not achieve sufficient results
+if (train_nonmember < 0.7 or train_member < 0.7 or test_nonmember < 0.7 or test_member < 0.7):
+    print("The classifier doesn't have sufficient accuracy to verify unlearning. Further verify results are not meaningful")
+
+
+
+#verification of unlearning
+
+
+#Images with a backdoor used for training
+verify_a = []
+for x in range(len(test_client_traindata)):
+    image, _, _ = test_client_traindata[x]
+    image = image.unsqueeze(0)
     with torch.no_grad():
-        testT0 += classifier(confidence_data_test[i])
-print(torch.sigmoid(testT0/len(confidence_data_test)))
+        conf_vector = model_post(image)
+    verify_a.append(conf_vector.numpy()[0]) #unlearned data
 
+verify_a = torch.tensor(verify_a, dtype=torch.float32)
 
-#test for testing data
-testT1 = 0
-for i in range(len(confidence_data_test_1)):
+eval_classifier(verify_a)
+
+#Unknown images modified with the unlearned backdoor pattern
+verify_backdoor_testdata, _, _ = image_backdoor(
+        dataset=test_clean_testdata, trigger_size= args.trigger_size, trigger_label= 0, unlearn_mode= "single", sigma= 0.5)
+
+verify_b = []
+for x in range(len(verify_backdoor_testdata)):
+    image, _, _ = verify_backdoor_testdata[x]
+    image = image.unsqueeze(0)
     with torch.no_grad():
-        testT1 += classifier(confidence_data_test_1[i])
-print(torch.sigmoid(testT1/len(confidence_data_test_1)))
+        conf_vector = model_post(image)
+    verify_b.append(conf_vector.numpy()[0]) #data that was used to unlearn the backdoor
+
+verify_b = torch.tensor(verify_b, dtype=torch.float32)
+
+eval_classifier(verify_b)
 
 
 
-#start verification
+#Images with the pertubbed backdoor used for unlearning
+pertubbed_traindata = backdoor_pertubbed_trainset[split_train_size:] #same data as a but with random noise over backdoor pattern
+verify_c = []
+for x in range(len(pertubbed_traindata)):
+    image, _, _ = pertubbed_traindata[x]
+    image = image.unsqueeze(0)
+    with torch.no_grad():
+        conf_vector = model_post(image)
+    verify_c.append(conf_vector.numpy()[0]) #data that was used to unlearn the backdoor
+
+verify_c = torch.tensor(verify_c, dtype=torch.float32)
+
+eval_classifier(verify_c)
+
+
+#Clean images used for training
+verify_d = []
+for x in range(len(clean_trainset)):
+    image, _, _ = clean_trainset[x]
+    image = image.unsqueeze(0)
+    with torch.no_grad():
+        conf_vector = model_post(image)
+    verify_d.append(conf_vector.numpy()[0]) #data that was used to unlearn the backdoor
+
+verify_d = torch.tensor(verify_d, dtype=torch.float32)
+
+eval_classifier(verify_d)
+
+
+
+
+
+
+#compare label of 
+def accuracy(model):
+    success = 0
+    failiure = 0
+    for i in range(len(train_client_traindata)):
+        image, _, label = train_client_traindata[i]
+        confidence_vector = model(image)
+        detected_label = confidence_vector.argmax(dim=1).item()
+        if (detected_label == label):
+            success += 1
+        else:
+            failure += 1
+    print(str(model) + ": Success count=" + success + ", failure count=" + failiure + ", accuracy=" + success / (success+failiure))
+
+# accuracy(model_pre)
+# accuracy(model_post)
+
+'''
 confidence_data = []
 confidence_original_data = []
 for x in range(len(train_client_traindata)):
@@ -642,8 +729,8 @@ for x in range(len(train_client_traindata)):
     image_original = image_original.unsqueeze(0)
 
     if ((x>10) and (x<20)):
-        save_image(image, "img_verify/modified"+str(x)+".png")
-        save_image(image_original, "img_verify/original"+str(x)+".png")
+        save_image(image, "img_verify/"+str(x)+"modified.png")
+        save_image(image_original, "img_verify/"+str(x)+"original.png")
 
     with torch.no_grad():
         confidence_vector = model_post(image)
@@ -655,14 +742,8 @@ for x in range(len(train_client_traindata)):
             print("Expected label ", label, " but got " , output_label, " fot dataset ", x)
     confidence_data.append(confidence_vector.numpy()[0]) #-> data was used for training
     confidence_original_data.append(confidence_original_vector.numpy()[0]) #-> data was used for training
+'''
 
-
-for x in range(len(train_client_testdata)):
-    image, _, label = train_client_testdata[x]
-    image = image.unsqueeze(0)
-    with torch.no_grad():
-        conf_vector = model_post(image)
-    confidence_data.append(conf_vector.numpy()[0]) #-> data was not used for training
 
 
 

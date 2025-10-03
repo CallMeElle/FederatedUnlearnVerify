@@ -22,8 +22,9 @@ After creating multiple variations of paramters, when only testing unlearning th
 
 
 ##Verification
-The verification model is created with 
-`python verify_main.py`
+The verification model is created with
+`python verify_main.py -trigger_size 5`
+The trigger_size of 5 is just an example
 
 
 ## Sources and License

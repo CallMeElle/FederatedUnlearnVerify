@@ -1,12 +1,9 @@
 . *
 !.gitignore
 venv/
-data/
-None/
 ssh.md
 *.pyc 
 img/
-img_train/
 img_verify/
 img_unlearn/
 project_tree.txt
