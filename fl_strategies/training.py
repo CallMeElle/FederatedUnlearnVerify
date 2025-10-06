@@ -301,26 +301,6 @@ class fl_training:
         backdoor_testset, backdoor_pertubbed_testset, backdoor_testset_true = datasets.image_backdoor(
             dataset=backdoor_testset, trigger_size= self.args.trigger_size, trigger_label= self.args.trigger_label, unlearn_mode= "single", sigma= 0.5)
 
-     
-
-        img, format, label = backdoor_trainset[992]
-        save_image(img, "img_train/backdoor_trainset_992.png")
-        img, format, label = backdoor_trainset[993]
-        save_image(img, "img_train/backdoor_trainset_993.png")
-        img, format, label = backdoor_trainset[994]
-        save_image(img, "img_train/backdoor_trainset_994.png")
-        img, format, label = backdoor_trainset[995]
-        save_image(img, "img_train/backdoor_trainset_995.png")
-        img, format, label = backdoor_trainset[996]
-        save_image(img, "img_train/backdoor_trainset_996.png")
-        img, format, label = backdoor_trainset[997]
-        save_image(img, "img_train/backdoor_trainset_997.png")
-        img, format, label = backdoor_trainset[998]
-        save_image(img, "img_train/backdoor_trainset_998.png")
-        img, format, label = backdoor_trainset[999]
-        save_image(img, "img_train/backdoor_trainset_999.png")
-        img, format, label = backdoor_trainset[1000]
-        save_image(img, "img_train/backdoor_trainset_1000.png")
 
         return clean_trainset, clean_testset, backdoor_trainset, backdoor_testset
 

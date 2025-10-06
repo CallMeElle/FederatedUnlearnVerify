@@ -299,27 +299,6 @@ class FeatureUnlearning:
             unlearn_mode=self.args.lipschitz_mode)
 
 
-        img, format, label = backdoor_trainset[992]
-        save_image(img, "img_unlearn/backdoor_trainset_992.png")
-        img, format, label = backdoor_trainset[993]
-        save_image(img, "img_unlearn/backdoor_trainset_993.png")
-        img, format, label = backdoor_trainset[994]
-        save_image(img, "img_unlearn/backdoor_trainset_994.png")
-        img, format, label = backdoor_trainset[995]
-        save_image(img, "img_unlearn/backdoor_trainset_995.png")
-        img, format, label = backdoor_trainset[996]
-        save_image(img, "img_unlearn/backdoor_trainset_996.png")
-        img, format, label = backdoor_trainset[997]
-        save_image(img, "img_unlearn/backdoor_trainset_997.png")
-        img, format, label = backdoor_trainset[998]
-        save_image(img, "img_unlearn/backdoor_trainset_998.png")
-        img, format, label = backdoor_trainset[999]
-        save_image(img, "img_unlearn/backdoor_trainset_999.png")
-        img, format, label = backdoor_trainset[1000]
-        save_image(img, "img_unlearn/backdoor_trainset_1000.png")
-        
-
-
         return clean_trainset, backdoor_trainset, backdoor_pertubbed_trainset, clean_testset
 
     def prepare_bias(
